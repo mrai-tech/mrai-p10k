@@ -135,15 +135,22 @@ It is **not** in `.p10k.zsh` on purpose: options set inside that file's
 function are local and would not stick. Turn it off with
 `unsetopt AUTO_CD` in `~/.zshrc` if you ever want the old behaviour back.
 
-## Safe configure — like original p10k, without breaking Mrai
+## Mrai setup wizard — your wizard, p10k's template, your rules
 
-The original `p10k configure` wizard overwrites `~/.p10k.zsh` and wipes
-the Mrai prompt. **Do not run `p10k configure` directly.** Run this
-instead, from anywhere, no `cd` needed:
+This is **Mrai's wizard, not p10k's**. It never calls `p10k configure`.
+p10k is only the template underneath (`~/.p10k.zsh`, forked from upstream
+`config/p10k-lean.zsh`). The wizard asks **you** 7 questions, then writes
+what you picked into `~/.p10k.mrai.zsh` — sourced after `~/.p10k.zsh`,
+so your choices win, everywhere they touch. **What you configure is
+what you get.** Do not run `p10k configure` directly — it overwrites
+`~/.p10k.zsh` with p10k's own config and wipes the Mrai prompt.
+
+Run it from anywhere, no `cd` needed:
 
 ```sh
 bash ~/mrai-configure.sh
 # or: bash ~/mrai-p10k/mrai-configure.sh
+# or: bash ~/mrai-configure.sh --defaults   # Mrai defaults, no questions
 ```
 
 It needs a real terminal (run it in Termux, in zsh, on the phone — not
@@ -151,18 +158,17 @@ piped). What it does, in order:
 
 1. **Backs up** `~/.p10k.zsh` to a timestamped file
    (`~/.p10k.zsh.bak.2026-11-25-123456`) **before** anything changes.
-2. Runs the **real `p10k configure` wizard** — answer it as you like:
-   style, prompt, colours, everything.
-3. After the wizard, **re-asserts the Mrai identity without wiping the
-   wizard's other choices**: it installs `~/.p10k.mrai.zsh` (overrides
-   only — red `#C62828`, `MRAI ☠︎︎ TECH`, Layout A, `➜`, white-bold dir,
-   ascii, one line) and makes `~/.zshrc` source it after `~/.p10k.zsh`,
-   plus a hook at the end of `~/.p10k.zsh` so the overrides survive a
-   plain `p10k reload` too.
-4. Restarts zsh. Your prompt should still read
-   `MRAI ☠︎︎ TECH <directory> ➜` in bold `#C62828`, with the wizard's
-   other choices kept (e.g. if the wizard picked seconds in the clock,
-   the clock keeps seconds — only the Mrai parts are forced back).
+2. Asks 7 questions (Enter = Mrai default):
+   layout (Lean one-line / Classic two-line), red (`#C62828` / `#690202`
+   dim / `#D70000` brighter), directory (short / full / hide), git
+   (on / off), right prompt (minimal / time only / off), AUTO_CD
+   (on / off), prompt char (`➜` / `❯` / `$`).
+3. Writes **every answer** into `~/.p10k.mrai.zsh` and, for AUTO_CD,
+   into `~/.zshrc` — layout, red, dir, git, right prompt, prompt char,
+   AUTO_CD, all of it. Then it prints a summary of exactly what was
+   set, so you can see you got what you configured.
+4. Restarts zsh. Your prompt should read
+   `MRAI ☠︎︎ TECH <directory> <your prompt char>` in your chosen red.
 
 Restore the pre-wizard config any time:
 
@@ -198,7 +204,7 @@ p10k reload        # apply, no restart needed
 
 **Do not run `p10k configure` directly** — the wizard overwrites
 `~/.p10k.zsh` with its own config and your Mrai segments are lost.
-Use `bash ~/mrai-configure.sh` instead (see "Safe configure" above), or
+Use `bash ~/mrai-configure.sh` instead (see "Mrai setup wizard" above), or
 edit the file instead.
 
 ## Files in this folder
@@ -208,7 +214,7 @@ edit the file instead.
 | `powerlevel10k/` | Upstream p10k, `--depth=1` clone, MIT `LICENSE` kept |
 | `.p10k.zsh` | Mrai config (the whole prompt) |
 | `.p10k.mrai.zsh` | Mrai overrides only (red / segment / layout) — sourced after `.p10k.zsh` |
-| `mrai-configure.sh` | Safe `p10k configure`: backup + wizard + re-assert Mrai, `--restore` |
+| `mrai-configure.sh` | Mrai setup wizard: 7 questions, writes your choices everywhere, `--defaults`, `--restore` |
 | `install-termux.sh` | Termux installer (idempotent, safe — see its header) |
 | `README.md` | This file |
 | `TESTLOG.md` | Live-test commands + output from this VM |

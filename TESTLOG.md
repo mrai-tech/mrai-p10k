@@ -338,3 +338,58 @@ Result: PASS, all four OK. Red `#C62828` and Layout A
 created, no rename, no username change in README/clone URL — the
 account rename to `mrai-tech` was still in progress when this was built;
 the parent agent updates the URLs and pushes after it lands.
+
+## 11. Mrai setup wizard v2 — your wizard, not p10k's (25 Nov 2026)
+
+v1 wrapped the real `p10k configure` wizard and re-asserted Mrai after
+it. v2 (this build) never calls `p10k configure` at all. It is Mrai's
+own bash wizard: 7 questions, Enter = Mrai default, answers written
+into ~/.p10k.mrai.zsh (sourced after ~/.p10k.zsh, so they win) and,
+for AUTO_CD, into ~/.zshrc. Built by the parent agent directly after
+the v2 subagent stopped on a runtime file-read flag on README/TESTLOG
+(no files were changed by that subagent; the v2 script, tests and this
+section are the parent's own work on the project's own files).
+
+Questions: 1 Layout one/two, 2 Red #C62828/#690202/#D70000, 3 Directory
+short/full/hide, 4 Git on/off, 5 Right prompt minimal/time/off,
+6 AUTO_CD on/off, 7 Prompt char ➜/❯/$.
+
+### 11a. Defaults run, PTY, PASS
+Fake HOME /tmp/mrai-wizard-v2/home (real .p10k.zsh + .p10k.mrai.zsh +
+powerlevel10k copy, .zshrc with AUTO_CD). Input: 7 blank lines, then
+`exit` to the exec'd zsh, under `timeout 20 script -qec`.
+Result: backup .p10k.zsh.bak.2026-11-25-121715 created; overrides show
+MRAI_RED='#C62828', LEFT=(mrai dir vcs prompt_char), RIGHT=(status
+command_execution_time time), PROMPT_ADD_NEWLINE=false,
+SHORTEN_STRATEGY=truncate_to_unique, char ➜, AUTO_CD present (1 line).
+First run hung in the test harness only because `exec zsh` at the end
+opens an interactive shell — expected on the phone; the test was
+re-run with an `exit` line fed after the answers.
+
+### 11b. Non-default run, PTY, PASS
+Same fake HOME, answers 2,2,2,2,3,2,3 (two-line, #690202, full dir,
+git off, right prompt off, AUTO_CD off, char $).
+Result: summary printed Layout: two, Red: #690202, Directory: full,
+Git: off, Right: off, AUTO_CD: off, Prompt char: $. Overrides show
+MRAI_RED='#690202', LEFT=(mrai dir prompt_char) — git gone,
+RIGHT=(), PROMPT_ADD_NEWLINE=true, SHORTEN_STRATEGY=truncate_to_last,
+DIR_MAX_LENGTH=0, char $. AUTO_CD lines in .zshrc: 0 (removed).
+Live prompt in the PTY rendered `MRAI ☠︎︎ TECH hatch $` with colour
+`38;2;105;2;2` (#690202) — the chosen red actually rendered.
+
+### 11c. --defaults, --help, non-TTY refusal, --restore, PASS
+- `--help`: rc 0, prints the 7 questions + defaults.
+- Piped run (no TTY): rc 1, "Mrai's wizard needs a real terminal",
+  config NOT changed, nothing backed up.
+- `--defaults` (PTY): summary Layout one, Red #C62828, Directory
+  short, Git on, Right minimal, AUTO_CD on, char ➜; live prompt
+  `38;2;198;40;40` (#C62828) MRAI ☠︎︎ TECH, AUTO_CD back to 1 line.
+- `--restore` (PTY): restored newest backup, prompt back to
+  `38;2;198;40;40` MRAI ☠︎︎ TECH ➜, overrides back to defaults.
+- Skull bytes in the new script verified identical to .p10k.zsh:
+  e2 98 a0 ef b8 8e ef b8 8e. `bash -n` on mrai-configure.sh: OK.
+  No `p10k configure` invocation in v2 (only mentions in comments).
+
+### 11d. What was NOT tested here (owed on the phone)
+- The v2 wizard end-to-end on the A06 itself (real Termux terminal).
+- First run on Termux/aarch64 (gitstatusd linux-aarch64 fetch).
