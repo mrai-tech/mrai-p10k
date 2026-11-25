@@ -15,10 +15,9 @@ which is **MIT open source**. The upstream `LICENSE` file is kept in
 `powerlevel10k/` is upstream, cloned `--depth=1` (no huge history).
 Only `.p10k.zsh` (the config), `install-termux.sh` and this README are Mrai's.
 
-Repo: **`mrai-p10k` under `mrai-apt`** — the account formerly known as
-`adeyanjuadewale17-sys`, renamed 25 Nov 2026 on Mrai's word to `mrai-apt`,
-so his personal name is not in the username and the account is not mixed
-up with `mrai-driod`. **Pushed live** — see the repo link below.
+Repo: **`mrai-p10k` under `mrai-apt`** — account renamed 25 Nov 2026 on
+Mrai's word to `mrai-apt`, so it is not mixed up with `mrai-driod`.
+**Pushed live** — see the repo link below.
 
 ## The red
 
