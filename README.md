@@ -15,11 +15,10 @@ which is **MIT open source**. The upstream `LICENSE` file is kept in
 `powerlevel10k/` is upstream, cloned `--depth=1` (no huge history).
 Only `.p10k.zsh` (the config), `install-termux.sh` and this README are Mrai's.
 
-Intended repo: **`mrai-p10k` under `adeyanjuadewale17-sys`** — username edited
-25 Nov 2026, on Mrai's word, after he picked that account for the push
-(was `mrai-driod`; that account's push access is expired / unlinked).
-**Push in progress** — repo did not exist yet at last check (404), so it
-needs creating under `adeyanjuadewale17-sys` first, then pushing.
+Repo: **`mrai-p10k` under `mrai-apt`** — the account formerly known as
+`adeyanjuadewale17-sys`, renamed 25 Nov 2026 on Mrai's word to `mrai-apt`,
+so his personal name is not in the username and the account is not mixed
+up with `mrai-driod`. **Pushed live** — see the repo link below.
 
 ## The red
 
@@ -78,7 +77,7 @@ hot reload is off (1–2 ms faster per prompt).
 
 ```sh
 pkg install -y zsh git
-git clone https://github.com/adeyanjuadewale17-sys/mrai-p10k.git ~/mrai-p10k
+git clone https://github.com/mrai-apt/mrai-p10k.git ~/mrai-p10k
 cd ~/mrai-p10k
 bash install-termux.sh
 ```
