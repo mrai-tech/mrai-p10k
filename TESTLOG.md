@@ -169,3 +169,172 @@ directory updates on `cd`, git (short), status-on-error, exec-time
 threshold and 24h time are all as configured. The one failure seen
 (gitstatus init in the piped test) disappeared in a real PTY once
 gitstatusd was fetched, and is documented here rather than hidden.
+
+---
+
+## 8. AUTO_CD + installer re-run (25 Nov 2026, VM)
+
+Cause: on the phone he typed `mrai-p10k/` and `naruto-new-era/` with no
+`cd` and got `zsh: permission denied: mrai-p10k/` — zsh AUTO_CD was off.
+Fix: `setopt AUTO_CD` in `~/.zshrc` via `install-termux.sh` step 4
+(own grep-check, so re-running the installer adds it to an existing
+install). NOT in `.p10k.zsh` — options there are local to its function.
+
+### 8a. Installer end-to-end (stubbed pkg/chsh, fake HOME)
+
+```
+# fake HOME /tmp/mrai-install-test/home, .zshrc pre-existing with p10k
+# lines but no AUTO_CD / overrides; stub pkg + chsh in PATH
+PATH=/tmp/mrai-install-test/bin:$PATH HOME=/tmp/mrai-install-test/home \
+  TERM=xterm-256color script -qec "bash /home/hatch/workspace/mrai-p10k/install-termux.sh" \
+  /tmp/mrai-install-test/install.log < input.txt   # input: pwd, exit
+```
+
+Result: PASS. Log lines: `Wired ~/.zshrc to source .p10k.mrai.zsh after
+.p10k.zsh.`, `Added setopt AUTO_CD to ~/.zshrc.`, `Config syntax OK.`,
+`Overrides syntax OK.`, `.zshrc syntax OK.` Fake `.zshrc` after:
+
+```
+source ~/powerlevel10k/powerlevel10k.zsh-theme
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+[[ ! -f ~/.p10k.mrai.zsh ]] || source ~/.p10k.mrai.zsh
+
+# Mrai: type a folder name alone to cd into it (no `cd` needed), from home or anywhere.
+setopt AUTO_CD
+```
+
+Installer also copied `.p10k.mrai.zsh` and `mrai-configure.sh` into the
+fake home, and the final `exec zsh` rendered `MRAI ☠︎︎ TECH /home/hatch ➜`
+in `38;2;198;40;40`. (pkg/chsh were stubs; on the phone they are real.)
+
+### 8b. AUTO_CD, real PTY — first run FAILED (my test, not the fix)
+
+Same PTY setup but launched from `/home/hatch` instead of the fake HOME,
+so `RED_HAWK` was not under the current directory: `zsh: command not
+found: RED_HAWK`. That is correct zsh behaviour — AUTO_CD only cds into
+folders under where you are. `..` and an absolute path
+(`/tmp/mrai-install-test/home/mrai-p10k`) still worked in that run.
+
+### 8c. AUTO_CD, real PTY — corrected run, PASS
+
+```
+HOME=/tmp/mrai-install-test/home ZDOTDIR=/tmp/mrai-install-test/home \
+  TERM=xterm-256color script -qec "cd /tmp/mrai-install-test/home && zsh -i" \
+  /tmp/mrai-install-test/autocd2.log < input3.txt
+# input3.txt: pwd, RED_HAWK, pwd, .., naruto-new-era, pwd, .., mrai-p10k/, pwd, .., echo MARKER-AUTOCD-OK, exit
+```
+
+Result: PASS. Prompt lines (ANSI stripped), `pwd` confirming each move:
+
+```
+MRAI ☠︎︎ TECH ~ ➜
+MRAI ☠︎︎ TECH ~/RED_HAWK ➜        /tmp/mrai-install-test/home/RED_HAWK
+MRAI ☠︎︎ TECH ~ ➜                 (after ..)
+MRAI ☠︎︎ TECH ~/naruto-new-era ➜  /tmp/mrai-install-test/home/naruto-new-era
+MRAI ☠︎︎ TECH ~ ➜                 (after ..)
+MRAI ☠︎︎ TECH ~/mrai-p10k ➜       /tmp/mrai-install-test/home/mrai-p10k  (typed `mrai-p10k/`, trailing slash)
+MRAI ☠︎︎ TECH ~ ➜                 (after ..)
+MARKER-AUTOCD-OK
+```
+
+No `permission denied`, no `command not found`. Note for the phone: this
+only works for folders under where you are — from `~`, `RED_HAWK` works;
+from `/tmp` it does not, and you type the full path instead.
+
+### 8d. Installer idempotency
+
+Ran the installer a second time on the same fake HOME. Result: PASS.
+`.zshrc` byte-identical after the second run (`diff` clean);
+`setopt AUTO_CD`, `p10k.mrai.zsh` and `powerlevel10k.zsh-theme` each
+appear exactly once.
+
+## 9. Safe configure (25 Nov 2026, VM)
+
+New files: `.p10k.mrai.zsh` (overrides only; `prompt_mrai()` copied
+verbatim from `.p10k.zsh`, skull bytes verified identical
+`e2 98 a0 ef b8 8e ef b8 8e`) and `mrai-configure.sh` (bash, executable).
+
+### 9a. Syntax + help + guards
+
+```
+zsh -n ~/workspace/mrai-p10k/.p10k.mrai.zsh && echo SYNTAX-OK
+bash -n ~/workspace/mrai-p10k/mrai-configure.sh && echo OK
+bash ~/workspace/mrai-p10k/mrai-configure.sh --help
+printf '' | bash ~/workspace/mrai-p10k/mrai-configure.sh   # non-TTY
+bash ~/workspace/mrai-p10k/mrai-configure.sh --bogus
+```
+
+Result: PASS. All syntax checks OK. `--help` prints usage. Non-TTY run
+refused with `ERROR: the p10k wizard needs a real terminal. … Your config
+was NOT changed.` (exit 1). Unknown option refused with usage (exit 1).
+
+### 9b. Wizard simulation — overrides on top of a generic config, PASS
+
+The real wizard is interactive and cannot be run piped, so the test
+simulated its output: `~/.p10k.zsh` = upstream `config/p10k-lean.zsh`
+(a generic lean config, no `mrai` segment), `.zshrc` = theme +
+wizard config + `setopt AUTO_CD`. Then the exact post-wizard steps from
+`mrai-configure.sh` were run: copy `.p10k.mrai.zsh`, wire `.zshrc` with
+the same awk, append the hook to the end of `~/.p10k.zsh`.
+
+PTY run (`cd` to the fake home, `zsh -i`; input: `pwd`, `p10k reload`,
+`pwd`, `RED_HAWK`, `pwd`, `..`, `echo MARKER-WIZARD-OK`, `exit`):
+
+Result: PASS. First prompt and every prompt after:
+
+```
+MRAI ☠︎︎ TECH ~ ➜
+MRAI ☠︎︎ TECH ~ ➜                 (after `p10k reload` — overrides survive reload, no loop)
+MRAI ☠︎︎ TECH ~/RED_HAWK ➜       (AUTO_CD still works in the same session)
+MRAI ☠︎︎ TECH ~ ➜
+MARKER-WIZARD-OK
+```
+
+Raw log contains `38;2;198;40;40` before `MRAI ☠︎︎ TECH`. No lean
+prompt leaked (`❯` / `on main` absent). One observed difference, kept
+deliberately: the right-prompt clock showed `11:13:47` (seconds) — that
+is the wizard lean config's `TIME_FORMAT`, which the overrides do not
+force back, because the brief was to keep the wizard's other choices.
+The Mrai parts (red, segment, Layout A, `➜`, dir, ascii, one line) are
+the ones re-asserted.
+
+### 9c. `--restore` with the real script, PASS
+
+Fake HOME with a wizard config in place and a backup
+`~/.p10k.zsh.bak.2026-11-25-120000` holding the Mrai config. Ran the
+real script from `/tmp` (no cd to the repo):
+
+```
+HOME=/tmp/mrai-restore-test/home ZDOTDIR=/tmp/mrai-restore-test/home \
+  script -qec "cd /tmp && bash /home/hatch/workspace/mrai-p10k/mrai-configure.sh --restore" ...
+```
+
+Result: PASS. Log: `Restored ~/.p10k.zsh from …bak.2026-11-25-120000`,
+`Installed Mrai overrides`, `Hooked .p10k.mrai.zsh into the end of
+~/.p10k.zsh.`, all three syntax checks OK, then zsh started with
+`MRAI ☠︎︎ TECH /tmp ➜` in `#C62828` and the clock back to `11:13`
+(`HH:MM`, Mrai's format — the restored config sets it).
+
+### 9d. What was NOT tested here (owed on the phone)
+
+- The real `p10k configure` wizard itself, end-to-end: it is
+  interactive (questions + preview on a real terminal) and cannot be
+  driven from a piped test. `mrai-configure.sh` refuses non-TTY runs
+  for exactly that reason; the wizard step must be proven on the A06.
+- `install-termux.sh` end-to-end on Termux (pkg/chsh were stubs here).
+- First run on Termux/aarch64 (gitstatusd linux-aarch64 fetch).
+
+## 10. Syntax re-check (all files, 25 Nov 2026)
+
+```
+zsh -n ~/workspace/mrai-p10k/.p10k.zsh && echo OK
+zsh -n ~/workspace/mrai-p10k/.p10k.mrai.zsh && echo OK
+bash -n ~/workspace/mrai-p10k/install-termux.sh && echo OK
+bash -n ~/workspace/mrai-p10k/mrai-configure.sh && echo OK
+```
+
+Result: PASS, all four OK. Red `#C62828` and Layout A
+(`MRAI ☠︎︎ TECH <dir> ➜`, one line) unchanged. No GitHub push, no repo
+created, no rename, no username change in README/clone URL — the
+account rename to `mrai-tech` was still in progress when this was built;
+the parent agent updates the URLs and pushes after it lands.

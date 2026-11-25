@@ -15,8 +15,8 @@ which is **MIT open source**. The upstream `LICENSE` file is kept in
 `powerlevel10k/` is upstream, cloned `--depth=1` (no huge history).
 Only `.p10k.zsh` (the config), `install-termux.sh` and this README are Mrai's.
 
-Repo: **`mrai-p10k` under `mrai-apt`** — account renamed 25 Nov 2026 on
-Mrai's word to `mrai-apt`, so it is not mixed up with `mrai-driod`.
+Repo: **`mrai-p10k` under `mrai-tech`** — account renamed 25 Nov 2026 on
+Mrai's word to `mrai-tech`, so it is not mixed up with `mrai-driod`.
 **Pushed live** — see the repo link below.
 
 ## The red
@@ -76,15 +76,20 @@ hot reload is off (1–2 ms faster per prompt).
 
 ```sh
 pkg install -y zsh git
-git clone https://github.com/mrai-apt/mrai-p10k.git ~/mrai-p10k
+git clone https://github.com/mrai-tech/mrai-p10k.git ~/mrai-p10k
 cd ~/mrai-p10k
 bash install-termux.sh
 ```
 
 That installs zsh/git if missing, puts p10k at `~/powerlevel10k`, copies
-`.p10k.zsh` to `~/.p10k.zsh`, wires `~/.zshrc`, and switches to zsh
-(`chsh -s zsh`, then `exec zsh`). First zsh launch fetches `gitstatusd`
+`.p10k.zsh` to `~/.p10k.zsh`, `.p10k.mrai.zsh` to `~/.p10k.mrai.zsh` and
+`mrai-configure.sh` to `~/mrai-configure.sh`, wires `~/.zshrc`, and switches
+to zsh (`chsh -s zsh`, then `exec zsh`). First zsh launch fetches `gitstatusd`
 for linux-aarch64 (one-time, a few MB) — normal, it powers the git segment.
+
+Re-running the installer is safe: it adds nothing twice to `~/.zshrc`, and
+it also adds `setopt AUTO_CD` and the overrides line to a phone that was
+installed with the earlier version — no fresh install needed.
 
 Manual steps, if you prefer:
 
@@ -92,9 +97,13 @@ Manual steps, if you prefer:
 pkg install -y zsh git
 git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ~/powerlevel10k
 cp ~/mrai-p10k/.p10k.zsh ~/.p10k.zsh
+cp ~/mrai-p10k/.p10k.mrai.zsh ~/.p10k.mrai.zsh
+cp ~/mrai-p10k/mrai-configure.sh ~/mrai-configure.sh
 # add to ~/.zshrc:
 source ~/powerlevel10k/powerlevel10k.zsh-theme
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+[[ ! -f ~/.p10k.mrai.zsh ]] || source ~/.p10k.mrai.zsh
+setopt AUTO_CD
 chsh -s zsh
 exec zsh
 ```
@@ -106,6 +115,61 @@ first and pick a working mirror (grimler.se or packages.termux.dev).
 PS1 stays as-is), does **not** delete your MRAI banner, does **not** touch
 `/etc/bash.bashrc`, and does **not** run `p10k configure`.
 p10k only works in zsh, not bash — that is why the install switches shells.
+
+## Type a folder to cd into it (AUTO_CD)
+
+No `cd` needed — type a folder name alone and zsh goes there, from home or
+anywhere, as long as it is a folder under where you are:
+
+```sh
+MRAI ☠︎︎ TECH ~ ➜ RED_HAWK          # -> ~/RED_HAWK
+MRAI ☠︎︎ TECH ~/RED_HAWK ➜ ..       # -> ~
+MRAI ☠︎︎ TECH ~ ➜ naruto-new-era/   # trailing / works too
+MRAI ☠︎︎ TECH ~ ➜ ~/mrai-p10k       # absolute paths work too
+```
+
+This is zsh `setopt AUTO_CD`, added to `~/.zshrc` by the installer. It only
+works for folders under your current directory (typing `RED_HAWK` from
+`/tmp` does nothing — you have to be at `~` first, or type the full path).
+It is **not** in `.p10k.zsh` on purpose: options set inside that file's
+function are local and would not stick. Turn it off with
+`unsetopt AUTO_CD` in `~/.zshrc` if you ever want the old behaviour back.
+
+## Safe configure — like original p10k, without breaking Mrai
+
+The original `p10k configure` wizard overwrites `~/.p10k.zsh` and wipes
+the Mrai prompt. **Do not run `p10k configure` directly.** Run this
+instead, from anywhere, no `cd` needed:
+
+```sh
+bash ~/mrai-configure.sh
+# or: bash ~/mrai-p10k/mrai-configure.sh
+```
+
+It needs a real terminal (run it in Termux, in zsh, on the phone — not
+piped). What it does, in order:
+
+1. **Backs up** `~/.p10k.zsh` to a timestamped file
+   (`~/.p10k.zsh.bak.2026-11-25-123456`) **before** anything changes.
+2. Runs the **real `p10k configure` wizard** — answer it as you like:
+   style, prompt, colours, everything.
+3. After the wizard, **re-asserts the Mrai identity without wiping the
+   wizard's other choices**: it installs `~/.p10k.mrai.zsh` (overrides
+   only — red `#C62828`, `MRAI ☠︎︎ TECH`, Layout A, `➜`, white-bold dir,
+   ascii, one line) and makes `~/.zshrc` source it after `~/.p10k.zsh`,
+   plus a hook at the end of `~/.p10k.zsh` so the overrides survive a
+   plain `p10k reload` too.
+4. Restarts zsh. Your prompt should still read
+   `MRAI ☠︎︎ TECH <directory> ➜` in bold `#C62828`, with the wizard's
+   other choices kept (e.g. if the wizard picked seconds in the clock,
+   the clock keeps seconds — only the Mrai parts are forced back).
+
+Restore the pre-wizard config any time:
+
+```sh
+bash ~/mrai-configure.sh --restore   # newest backup back to ~/.p10k.zsh
+bash ~/mrai-configure.sh --help
+```
 
 ## Switch back to bash
 
@@ -132,8 +196,10 @@ p10k reload        # apply, no restart needed
 - **Right prompt:** add/remove `status`, `command_execution_time`, `time`
   in `POWERLEVEL9K_RIGHT_PROMPT_ELEMENTS`.
 
-**Do not run `p10k configure`** — the wizard overwrites `~/.p10k.zsh`
-with its own config and your Mrai segments are lost. Edit the file instead.
+**Do not run `p10k configure` directly** — the wizard overwrites
+`~/.p10k.zsh` with its own config and your Mrai segments are lost.
+Use `bash ~/mrai-configure.sh` instead (see "Safe configure" above), or
+edit the file instead.
 
 ## Files in this folder
 
@@ -141,6 +207,8 @@ with its own config and your Mrai segments are lost. Edit the file instead.
 |---|---|
 | `powerlevel10k/` | Upstream p10k, `--depth=1` clone, MIT `LICENSE` kept |
 | `.p10k.zsh` | Mrai config (the whole prompt) |
+| `.p10k.mrai.zsh` | Mrai overrides only (red / segment / layout) — sourced after `.p10k.zsh` |
+| `mrai-configure.sh` | Safe `p10k configure`: backup + wizard + re-assert Mrai, `--restore` |
 | `install-termux.sh` | Termux installer (idempotent, safe — see its header) |
 | `README.md` | This file |
 | `TESTLOG.md` | Live-test commands + output from this VM |

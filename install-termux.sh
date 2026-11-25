@@ -8,8 +8,12 @@
 # What it does:
 #   1. Installs zsh + git if missing (pkg).
 #   2. Installs/updates Powerlevel10k at ~/powerlevel10k.
-#   3. Copies this repo's .p10k.zsh to ~/.p10k.zsh (backs up any existing one).
-#   4. Adds the theme + config lines to ~/.zshrc — only if not already there.
+#   3. Copies this repo's .p10k.zsh to ~/.p10k.zsh (backs up any existing one),
+#      .p10k.mrai.zsh to ~/.p10k.mrai.zsh, and mrai-configure.sh to
+#      ~/mrai-configure.sh (so it runs from anywhere, no cd needed).
+#   4. Adds the theme + config lines to ~/.zshrc — only if not already there —
+#      plus `setopt AUTO_CD` (type a folder name alone to cd into it, from
+#      home or anywhere, no `cd` needed) and the Mrai overrides source line.
 #   5. Switches the default shell to zsh (chsh -s zsh) and starts zsh.
 #
 # What it does NOT do (safe by design):
@@ -33,7 +37,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 P10K_DIR="$HOME/powerlevel10k"
 CONFIG_SRC="$SCRIPT_DIR/.p10k.zsh"
 CONFIG_DST="$HOME/.p10k.zsh"
+OVERRIDES_SRC="$SCRIPT_DIR/.p10k.mrai.zsh"
+OVERRIDES_DST="$HOME/.p10k.mrai.zsh"
+CONFIGURE_SRC="$SCRIPT_DIR/mrai-configure.sh"
+CONFIGURE_DST="$HOME/mrai-configure.sh"
 ZSHRC="$HOME/.zshrc"
+OVERRIDES_LINE='[[ ! -f ~/.p10k.mrai.zsh ]] || source ~/.p10k.mrai.zsh'
 
 echo "== Mrai Powerlevel10k — Termux install =="
 
@@ -66,6 +75,7 @@ else
 fi
 
 # 3. Mrai config -> ~/.p10k.zsh (backup the old one, if any).
+#    Also install the Mrai overrides and the safe-configure script.
 echo "[3/5] Installing Mrai config to $CONFIG_DST..."
 if [[ -f "$CONFIG_DST" ]] && ! cmp -s "$CONFIG_SRC" "$CONFIG_DST"; then
   cp "$CONFIG_DST" "$CONFIG_DST.bak"
@@ -73,23 +83,64 @@ if [[ -f "$CONFIG_DST" ]] && ! cmp -s "$CONFIG_SRC" "$CONFIG_DST"; then
 fi
 cp "$CONFIG_SRC" "$CONFIG_DST"
 
+if [[ -f "$OVERRIDES_SRC" ]]; then
+  if [[ -f "$OVERRIDES_DST" ]] && ! cmp -s "$OVERRIDES_SRC" "$OVERRIDES_DST"; then
+    cp "$OVERRIDES_DST" "$OVERRIDES_DST.bak"
+    echo "Backed up existing ~/.p10k.mrai.zsh to ~/.p10k.mrai.zsh.bak"
+  fi
+  cp "$OVERRIDES_SRC" "$OVERRIDES_DST"
+  echo "Installed Mrai overrides to ~/.p10k.mrai.zsh"
+fi
+
+if [[ -f "$CONFIGURE_SRC" ]]; then
+  cp "$CONFIGURE_SRC" "$CONFIGURE_DST"
+  chmod +x "$CONFIGURE_DST"
+  echo "Installed safe configure to ~/mrai-configure.sh (run it from anywhere)"
+fi
+
 # 4. ~/.zshrc: source theme + config, once only. Banner lines are untouched.
+#    AUTO_CD and the overrides line are added by their own grep-checks, so
+#    re-running this installer adds them to an existing install too.
 echo "[4/5] Wiring ~/.zshrc..."
 touch "$ZSHRC"
 if ! grep -q "powerlevel10k.zsh-theme" "$ZSHRC"; then
-  cat >> "$ZSHRC" <<'EOF'
+  cat >> "$ZSHRC" <<EOF
 
 # Mrai Powerlevel10k (added by mrai-p10k/install-termux.sh)
 source ~/powerlevel10k/powerlevel10k.zsh-theme
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+$OVERRIDES_LINE
 EOF
   echo "Added p10k lines to ~/.zshrc."
 else
   echo "~/.zshrc already sources powerlevel10k — nothing added."
+  # Overrides line: insert right after the .p10k.zsh source line, once only.
+  if ! grep -q "p10k.mrai.zsh" "$ZSHRC"; then
+    awk -v hook="$OVERRIDES_LINE" '
+      !done && /\.p10k\.zsh/ && !/p10k\.mrai\.zsh/ { print; print hook; done=1; next }
+      { print }
+    ' "$ZSHRC" > "$ZSHRC.tmp" && mv "$ZSHRC.tmp" "$ZSHRC"
+    echo "Wired ~/.zshrc to source .p10k.mrai.zsh after .p10k.zsh."
+  fi
 fi
 
-# Syntax-check the two files we care about.
+# AUTO_CD: typing a folder name alone cds into it — from home or anywhere,
+# no `cd` needed. (This is a zsh option, so it lives in ~/.zshrc, NOT inside
+# .p10k.zsh, where options are local to its function and would not stick.)
+if ! grep -q "setopt AUTO_CD" "$ZSHRC"; then
+  cat >> "$ZSHRC" <<'EOF'
+
+# Mrai: type a folder name alone to cd into it (no `cd` needed), from home or anywhere.
+setopt AUTO_CD
+EOF
+  echo "Added setopt AUTO_CD to ~/.zshrc."
+else
+  echo "~/.zshrc already has setopt AUTO_CD — nothing added."
+fi
+
+# Syntax-check the files we care about.
 zsh -n "$CONFIG_DST" && echo "Config syntax OK."
+zsh -n "$OVERRIDES_DST" && echo "Overrides syntax OK."
 zsh -n "$ZSHRC" && echo ".zshrc syntax OK."
 
 # 5. Switch default shell to zsh. p10k only works in zsh, not bash.
